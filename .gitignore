@@ -1,0 +1,5 @@
+.env
+telegram_config.py
+__pycache__/
+*.py[cod]
+safedrive.db

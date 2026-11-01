@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>SafeDrive sign in</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: #090d16;
+            color: #e0e6ed;
+            font: 16px system-ui
+        }
+
+        .shell {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            max-width: 800px;
+            background: #121a2b;
+            border: 1px solid #223254;
+            border-radius: 14px;
+            overflow: hidden
+        }
+
+        .intro {
+            padding: 36px;
+            background: #0d1527
+        }
+
+        .form {
+            padding: 30px
+        }
+
+        h1 {
+            margin: 0 0 10px
+        }
+
+        h1 span {
+            color: #00e5ff
+        }
+
+        input,
+        button {
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 6px;
+            padding: 11px;
+            margin-top: 10px
+        }
+
+        input {
+            border: 1px solid #33476d;
+            background: #090d16;
+            color: #fff
+        }
+
+        button {
+            border: 0;
+            background: #00e5ff;
+            color: #001419;
+            font-weight: 700;
+            cursor: pointer
+        }
+
+        .secondary {
+            background: transparent;
+            color: #e0e6ed;
+            border: 1px solid #33476d
+        }
+
+        .note {
+            color: #9aa7b9;
+            font-size: .9rem;
+            line-height: 1.5
+        }
+
+        .message {
+            color: #ffb300;
+            min-height: 1.3em
+        }
+
+        @media(max-width:650px) {
+            .shell {
+                grid-template-columns: 1fr;
+                margin: 18px
+            }
+
+            .intro {
+                display: none
+            }
+        }
+        body { background: radial-gradient(circle at 18% 5%, #1d4e85 0, transparent 36%), #090d16; }
+        .shell { box-shadow: 0 30px 80px rgba(0,0,0,.45); max-width: 860px; }
+        .intro { background: linear-gradient(150deg, #15365e, #0d1527 72%); }
+        .intro:before { content:'SECURE MOBILITY PLATFORM'; display:block; color:#00e5ff; font-size:.68rem; letter-spacing:2px; margin-bottom:18px; }
+        .form { background: linear-gradient(145deg, #17233b, #101827); }
+        h2 { font-size:1.7rem; margin-top:0; }
+        input:focus { outline:2px solid #00e5ff; border-color:transparent; }
+        button { transition:transform .18s, box-shadow .18s; }
+        button:hover { transform:translateY(-1px); box-shadow:0 10px 24px rgba(0,229,255,.18); }
+    </style>
+</head>
+
+<body>
+    <main class="shell">
+        <section class="intro">
+            <h1>SAFE<span>DRIVE</span></h1>
+            <p>Role-based safety platform</p>
+            <p class="note">Admins access telemetry, verification and emergency dispatch. Registered users access their
+                own camera-based drowsiness monitor.</p>
+        </section>
+        <section class="form">
+            <h2>Sign in</h2>
+            <p id="message" class="message"></p>
+            <form action="/login" method="post"><input name="username" placeholder="Username" required
+                    autocomplete="username"><input name="password" type="password" placeholder="Password" required
+                    autocomplete="current-password"><button>Sign in</button></form>
+            <hr style="border-color:#223254;margin:24px 0">
+            <h3>Create user account</h3>
+            <form action="/register" method="post"><input name="username" placeholder="Choose username" required><input
+                    name="password" type="password" placeholder="Password (8+ characters)" required
+                    minlength="8"><button class="secondary">Create user account</button></form>
+            <p class="note">Only an administrator account can access the dispatch panel.</p>
+        </section>
+    </main>
+    <script>const p = new URLSearchParams(location.search); document.querySelector('#message').textContent = p.get('error') || p.get('message') || '';</script>
+</body>
+
+</html>

@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#090d16">
+    <title>SafeDrive | Driver monitor</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #090d16;
+            --panel: #121b2b;
+            --panel-raised: #172338;
+            --border: #263650;
+            --text: #e8eef7;
+            --muted: #9aa8bb;
+            --accent: #44d7e8;
+            --success: #45d6a0;
+            --warning: #f3b84b;
+            --danger: #ff5368;
+            font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        body {
+            min-width: 320px;
+            min-height: 100vh;
+            margin: 0;
+            padding: 26px;
+            color: var(--text);
+            background: radial-gradient(ellipse at 70% -15%, rgba(35, 83, 125, .24), transparent 42%), var(--bg);
+        }
+        button { font: inherit; }
+        .wrap { max-width: 1120px; margin: 0 auto; }
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 8px 0 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        .brand { color: #f5f8fc; font-size: .95rem; font-weight: 750; letter-spacing: .08em; }
+        .brand span { color: var(--accent); }
+        .subtitle { margin-top: 5px; color: var(--muted); font-size: .77rem; }
+        a { color: var(--accent); text-decoration: none; font-size: .83rem; font-weight: 650; }
+        a:hover { color: #fff; }
+        h1 { margin: 25px 0 5px; font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.04em; }
+        .intro { margin: 0; color: var(--muted); font-size: .9rem; }
+        .grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr); gap: 18px; margin-top: 22px; }
+        .card {
+            min-width: 0;
+            padding: 18px;
+            background: linear-gradient(145deg, rgba(23, 35, 56, .96), rgba(15, 24, 39, .98));
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 14px 36px rgba(0, 0, 0, .2);
+        }
+        .camera-shell { position: relative; overflow: hidden; background: #05080e; border: 1px solid #30415b; border-radius: 10px; }
+        video { display: block; width: 100%; min-height: 240px; max-height: 570px; aspect-ratio: 4 / 3; object-fit: cover; background: #05080e; }
+        .camera-tag {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 7px 10px;
+            color: #dce8f4;
+            background: rgba(8, 13, 22, .82);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 7px;
+            font-size: .68rem;
+            font-weight: 700;
+            letter-spacing: .06em;
+        }
+        .monitor-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .8rem; }
+        .monitor-head b { color: var(--text); font-weight: 650; }
+        .state {
+            min-height: 66px;
+            display: flex;
+            align-items: center;
+            margin: 17px 0 0;
+            padding: 14px;
+            color: var(--success);
+            background: rgba(69, 214, 160, .07);
+            border: 1px solid rgba(69, 214, 160, .18);
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+        .state.warn { color: var(--warning); background: rgba(243, 184, 75, .07); border-color: rgba(243, 184, 75, .2); }
+        .state.danger { color: #ff8291; background: rgba(255, 83, 104, .09); border-color: rgba(255, 83, 104, .3); }
+        .level-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 22px; }
+        .level-title { font-size: .72rem; color: #c4cfdd; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+        .level-count { color: var(--muted); font-size: .75rem; font-weight: 650; }
+        .level-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-top: 11px; }
+        .level-segment { height: 9px; background: #263248; border-radius: 99px; transition: background .2s, box-shadow .2s; }
+        .level-segment.active { background: var(--warning); box-shadow: 0 0 12px rgba(243, 184, 75, .2); }
+        .level-segment.critical { background: var(--danger); box-shadow: 0 0 13px rgba(255, 83, 104, .28); }
+        .level-caption { display: flex; justify-content: space-between; margin-top: 8px; color: #8290a4; font-size: .67rem; }
+        .actions { margin-top: 17px; }
+        .primary {
+            width: 100%;
+            min-height: 44px;
+            padding: 11px 15px;
+            color: #07131b;
+            background: var(--accent);
+            border: 0;
+            border-radius: 9px;
+            font-size: .85rem;
+            font-weight: 750;
+            cursor: pointer;
+            transition: filter .16s, transform .16s, box-shadow .16s;
+        }
+        .primary:hover { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(68, 215, 232, .17); }
+        .primary:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+        .primary:disabled { opacity: .58; cursor: wait; transform: none; }
+        .secondary {
+            width: 100%;
+            min-height: 42px;
+            margin-top: 9px;
+            padding: 10px 14px;
+            color: #dce5f0;
+            background: rgba(255,255,255,.025);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            font-size: .82rem;
+            font-weight: 650;
+            cursor: pointer;
+        }
+        .secondary:hover { background: rgba(255,255,255,.07); border-color: #40536e; }
+        .access-card { max-width: 520px; margin: 24px auto 0; }
+        .access-card h2 { margin: 0; font-size: 1.15rem; }
+        .access-card > p { margin: 8px 0 16px; color: var(--muted); font-size: .83rem; line-height: 1.55; }
+        .access-card label { display: block; margin-top: 13px; color: #cbd6e4; font-size: .76rem; font-weight: 650; }
+        .access-card input {
+            width: 100%;
+            min-height: 43px;
+            margin-top: 7px;
+            padding: 10px 12px;
+            color: var(--text);
+            background: #0a111d;
+            border: 1px solid #344763;
+            border-radius: 8px;
+            font: inherit;
+            font-size: .86rem;
+        }
+        .access-card input:focus { outline: 2px solid rgba(68, 215, 232, .42); border-color: var(--accent); }
+        .access-message { min-height: 20px; margin-top: 10px; color: #ff9aa7; font-size: .76rem; line-height: 1.45; }
+        .access-message.success { color: var(--success); }
+        .note { margin: 14px 0 0; color: var(--muted); font-size: .77rem; line-height: 1.55; }
+        .lock-note {
+            display: none;
+            position: relative;
+            margin-top: 14px;
+            padding: 16px 15px 16px 52px;
+            color: #f0cbd0;
+            background: linear-gradient(135deg, rgba(91, 35, 48, .42), rgba(31, 25, 39, .92));
+            border: 1px solid rgba(255, 109, 127, .3);
+            border-left: 3px solid var(--danger);
+            border-radius: 10px;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, .16);
+            font-size: .78rem;
+            line-height: 1.6;
+        }
+        .lock-note::before {
+            content: "!";
+            position: absolute;
+            top: 16px;
+            left: 15px;
+            width: 23px;
+            height: 23px;
+            display: grid;
+            place-items: center;
+            color: #fff;
+            background: rgba(255, 83, 104, .18);
+            border: 1px solid rgba(255, 109, 127, .5);
+            border-radius: 50%;
+            font-size: .78rem;
+            font-weight: 800;
+        }
+        .lock-note.visible { display: block; }
+        @media (max-width: 760px) {
+            body { padding: 18px 14px; }
+            .grid { grid-template-columns: 1fr; }
+            .top { padding-bottom: 15px; }
+            .card { padding: 15px; }
+            video { min-height: 190px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition-duration: .01ms !important; scroll-behavior: auto !important; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+</head>
+
+<body>
+    <main class="wrap">
+        <header class="top">
+            <div>
+                <div class="brand">SAFE<span>DRIVE</span> AI</div>
+                <div class="subtitle">Driver safety monitor</div>
+            </div>
+            <a href="/logout">Sign out</a>
+        </header>
+
+        <h1>Drowsiness detection</h1>
+        <p class="intro">Start monitoring when the vehicle is stationary and the camera is positioned safely.</p>
+
+        <section class="card access-card" id="vehicleAccessCard" aria-labelledby="accessTitle">
+            <h2 id="accessTitle">Vehicle access</h2>
+            <p id="accessDescription">Verify your vehicle password to open the driver monitor.</p>
+            <form id="vehicleAccessForm">
+                <label for="vehiclePassword" id="vehiclePasswordLabel">Vehicle password</label>
+                <input id="vehiclePassword" name="password" type="password" minlength="8" autocomplete="current-password" required>
+                <label for="vehiclePasswordConfirmation" id="confirmationLabel" hidden>Confirm vehicle password</label>
+                <input id="vehiclePasswordConfirmation" name="confirmation" type="password" minlength="8" autocomplete="new-password" hidden>
+                <p class="access-message" id="accessMessage" role="status" aria-live="polite"></p>
+                <button class="primary" id="unlockButton" type="submit">Unlock driver monitor</button>
+            </form>
+        </section>
+
+        <div class="grid" id="monitorGrid" hidden>
+            <section class="card" aria-label="Driver camera">
+                <div class="camera-shell">
+                    <video id="camera" autoplay muted playsinline aria-label="Driver camera preview"></video>
+                    <span class="camera-tag" id="cameraTag">CAMERA OFF</span>
+                </div>
+            </section>
+
+            <aside class="card" aria-label="Drowsiness monitor status">
+                <div class="monitor-head"><span>Camera status</span><b id="cameraState">Off</b></div>
+                <div class="monitor-head" style="margin-top:11px"><span>Eye aspect ratio</span><b id="ear">--</b></div>
+                <p id="state" class="state" role="status" aria-live="polite">Monitoring not started</p>
+
+                <div class="level-head">
+                    <span class="level-title">Drowsiness alert level</span>
+                    <span class="level-count" id="levelCount">0 / 5</span>
+                </div>
+                <div class="level-bar" id="levelBar" role="progressbar" aria-label="Drowsiness alert level" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
+                    <span class="level-segment"></span><span class="level-segment"></span><span class="level-segment"></span><span class="level-segment"></span><span class="level-segment"></span>
+                </div>
+                <div class="level-caption"><span>Clear</span><span>Pull over safely</span></div>
+
+                <div class="lock-note" id="lockNote" role="alert">
+                    Five alert stages reached. Monitoring is locked and the camera has stopped. Safely stop the vehicle before restarting.
+                </div>
+                <div class="actions">
+                    <button class="primary" id="start" type="button">Start drowsiness monitoring</button>
+                    <button class="secondary" id="stopCamera" type="button" hidden>Stop camera and lock panel</button>
+                </div>
+                <p class="note">Each continuous eye-closure warning adds one stage. Keep your eyes open for 3 seconds to clear the bar. At stage five, pull over safely and restart monitoring only when stationary.</p>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        const video = document.querySelector('#camera');
+        const state = document.querySelector('#state');
+        const earOut = document.querySelector('#ear');
+        const startButton = document.querySelector('#start');
+        const cameraState = document.querySelector('#cameraState');
+        const cameraTag = document.querySelector('#cameraTag');
+        const levelBar = document.querySelector('#levelBar');
+        const levelCount = document.querySelector('#levelCount');
+        const lockNote = document.querySelector('#lockNote');
+        const levelSegments = [...document.querySelectorAll('.level-segment')];
+        const accessCard = document.querySelector('#vehicleAccessCard');
+        const accessForm = document.querySelector('#vehicleAccessForm');
+        const accessDescription = document.querySelector('#accessDescription');
+        const accessMessage = document.querySelector('#accessMessage');
+        const confirmationInput = document.querySelector('#vehiclePasswordConfirmation');
+        const confirmationLabel = document.querySelector('#confirmationLabel');
+        const unlockButton = document.querySelector('#unlockButton');
+        const monitorGrid = document.querySelector('#monitorGrid');
+        const stopCameraButton = document.querySelector('#stopCamera');
+
+        const EYES_CLOSED_THRESHOLD = 0.20;
+        const EYES_CLOSED_DURATION_MS = 2000;
+        const NORMAL_RESET_DURATION_MS = 3000;
+        const MAX_ALERT_LEVEL = 5;
+        const LOCK_KEY = 'safedriveDrowsinessLocked';
+
+        let closedSince = null;
+        let triggerRecorded = false;
+        let alertLevel = 0;
+        let faceMesh = null;
+        let cameraController = null;
+        let cameraStream = null;
+        let normalResetTimer = null;
+        let monitoringLocked = sessionStorage.getItem(LOCK_KEY) === 'true';
+
+        async function readApiResponse(response) {
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('The server returned a web page instead of the vehicle access API. Restart Flask using the latest app.py, then sign in again.');
+            }
+            return response.json();
+        }
+
+        async function loadVehicleAccess() {
+            accessMessage.textContent = '';
+            try {
+                const response = await fetch('/api/vehicle/access');
+                const result = await readApiResponse(response);
+                if (!response.ok) throw new Error(result.error || 'Could not load vehicle access.');
+                const firstSetup = !result.password_configured;
+                accessDescription.textContent = firstSetup
+                    ? 'Create a separate vehicle password. You will need it each time you open this driver panel.'
+                    : 'Enter your vehicle password to unlock fatigue monitoring for this session.';
+                confirmationInput.hidden = !firstSetup;
+                confirmationInput.required = firstSetup;
+                confirmationLabel.hidden = !firstSetup;
+                document.querySelector('#vehiclePassword').autocomplete = firstSetup ? 'new-password' : 'current-password';
+                unlockButton.textContent = firstSetup ? 'Create password and continue' : 'Unlock driver monitor';
+                return true;
+            } catch (error) {
+                accessMessage.textContent = error.message;
+                unlockButton.disabled = true;
+                return false;
+            }
+        }
+
+        async function unlockVehiclePanel(event) {
+            event.preventDefault();
+            unlockButton.disabled = true;
+            accessMessage.className = 'access-message';
+            accessMessage.textContent = 'Verifying vehicle password…';
+            try {
+                const response = await fetch('/api/vehicle/access', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        password: document.querySelector('#vehiclePassword').value,
+                        confirmation: confirmationInput.value
+                    })
+                });
+                const result = await readApiResponse(response);
+                if (!response.ok) throw new Error(result.error || 'Vehicle access could not be verified.');
+                accessMessage.className = 'access-message success';
+                accessMessage.textContent = 'Access verified. Start monitoring when safely stationary.';
+                document.querySelector('#vehiclePassword').value = '';
+                confirmationInput.value = '';
+                accessCard.hidden = true;
+                monitorGrid.hidden = false;
+                setState(monitoringLocked
+                    ? 'STAGE 5 — Pull over safely. Monitoring locked.'
+                    : 'Vehicle access verified — start monitoring when safely stationary.',
+                monitoringLocked ? 'danger' : 'warn');
+            } catch (error) {
+                accessMessage.textContent = error.message;
+            } finally {
+                unlockButton.disabled = false;
+            }
+        }
+
+        async function stopMonitoringAndLock() {
+            stopCamera();
+            cancelRecoveryTimer();
+            closedSince = null;
+            triggerRecorded = false;
+            try {
+                const response = await fetch('/api/vehicle/lock', { method: 'POST' });
+                const result = await readApiResponse(response);
+                if (!response.ok) throw new Error(result.error || 'Could not lock vehicle panel.');
+                monitorGrid.hidden = true;
+                accessCard.hidden = false;
+                document.querySelector('#vehiclePassword').value = '';
+                confirmationInput.value = '';
+                accessMessage.className = 'access-message success';
+                accessMessage.textContent = 'Camera stopped and driver panel locked.';
+                await loadVehicleAccess();
+            } catch (error) {
+                setState(`Camera stopped, but panel lock failed: ${error.message}`, 'danger');
+            }
+        }
+
+        function setState(message, severity = 'normal') {
+            state.textContent = message;
+            state.className = `state${severity === 'normal' ? '' : ` ${severity}`}`;
+        }
+
+        function updateAlertLevel() {
+            levelCount.textContent = `${alertLevel} / ${MAX_ALERT_LEVEL}`;
+            levelBar.setAttribute('aria-valuenow', String(alertLevel));
+            levelSegments.forEach((segment, index) => {
+                segment.classList.toggle('active', index < alertLevel && alertLevel < MAX_ALERT_LEVEL);
+                segment.classList.toggle('critical', index < alertLevel && alertLevel === MAX_ALERT_LEVEL);
+            });
+        }
+
+        function cancelRecoveryTimer() {
+            if (normalResetTimer !== null) {
+                clearTimeout(normalResetTimer);
+                normalResetTimer = null;
+            }
+        }
+
+        function stopCamera() {
+            if (cameraController) {
+                cameraController.stop();
+                cameraController = null;
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            video.srcObject = null;
+            if (faceMesh) {
+                faceMesh.close();
+                faceMesh = null;
+            }
+            cameraState.textContent = 'Stopped';
+            cameraTag.textContent = 'CAMERA STOPPED';
+            stopCameraButton.hidden = true;
+            startButton.disabled = false;
+        }
+
+        function lockMonitoring() {
+            monitoringLocked = true;
+            sessionStorage.setItem(LOCK_KEY, 'true');
+            cancelRecoveryTimer();
+            stopCamera();
+            lockNote.classList.add('visible');
+            startButton.textContent = 'Restart after stopping safely';
+            startButton.disabled = false;
+            setState('STAGE 5 — Pull over safely. Monitoring locked.', 'danger');
+        }
+
+        function addDrowsinessAlert() {
+            alertLevel = Math.min(alertLevel + 1, MAX_ALERT_LEVEL);
+            updateAlertLevel();
+
+            if (alertLevel === MAX_ALERT_LEVEL) {
+                lockMonitoring();
+                return;
+            }
+
+            const stageMessages = [
+                'Stage 1 — Drowsiness detected. Stay alert.',
+                'Stage 2 — Repeated drowsiness. Focus on the road.',
+                'Stage 3 — Strong drowsiness warning. Take a safe break.',
+                'Stage 4 — Critical drowsiness. Prepare to pull over safely.'
+            ];
+            setState(stageMessages[alertLevel - 1], alertLevel >= 3 ? 'danger' : 'warn');
+        }
+
+        function onNormalDetection() {
+            if (alertLevel === 0) {
+                setState('Eyes appear open');
+                return;
+            }
+            if (normalResetTimer !== null) return;
+
+            setState('Eyes open — clearing alerts in 3 seconds', 'warn');
+            normalResetTimer = setTimeout(() => {
+                normalResetTimer = null;
+                if (monitoringLocked) return;
+                alertLevel = 0;
+                updateAlertLevel();
+                setState('Eyes appear open');
+            }, NORMAL_RESET_DURATION_MS);
+        }
+
+        function pointDistance(a, b) {
+            return Math.hypot(a.x - b.x, a.y - b.y);
+        }
+
+        function eyeAspectRatio(points, ids) {
+            const width = pointDistance(points[ids[0]], points[ids[3]]);
+            if (width === 0) return 1;
+            return (pointDistance(points[ids[1]], points[ids[5]]) +
+                pointDistance(points[ids[2]], points[ids[4]])) / (2 * width);
+        }
+
+        function handleFaceResults(result) {
+            if (monitoringLocked) return;
+            const points = result.multiFaceLandmarks?.[0];
+            if (!points) {
+                closedSince = null;
+                triggerRecorded = false;
+                cancelRecoveryTimer();
+                setState('Face not detected — alert level held', 'warn');
+                return;
+            }
+
+            const ratio = (eyeAspectRatio(points, [33, 160, 158, 133, 153, 144]) +
+                eyeAspectRatio(points, [362, 385, 387, 263, 373, 380])) / 2;
+            earOut.textContent = ratio.toFixed(3);
+
+            if (ratio < EYES_CLOSED_THRESHOLD) {
+                cancelRecoveryTimer();
+                closedSince ??= Date.now();
+                if (!triggerRecorded && Date.now() - closedSince >= EYES_CLOSED_DURATION_MS) {
+                    triggerRecorded = true;
+                    addDrowsinessAlert();
+                } else if (!triggerRecorded) {
+                    setState('Eyes closed — verifying…', 'warn');
+                }
+                return;
+            }
+
+            closedSince = null;
+            triggerRecorded = false;
+            onNormalDetection();
+        }
+
+        async function startMonitoring() {
+            if (monitoringLocked && !window.confirm(
+                'Only restart after the vehicle is safely stopped. This prototype does not stop or control a vehicle. Continue?'
+            )) return;
+
+            startButton.disabled = true;
+            setState('Requesting camera access…', 'warn');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' },
+                    audio: false
+                });
+                cameraStream = stream;
+                video.srcObject = stream;
+
+                faceMesh = new FaceMesh({
+                    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+                });
+                faceMesh.setOptions({
+                    maxNumFaces: 1,
+                    refineLandmarks: true,
+                    minDetectionConfidence: .6,
+                    minTrackingConfidence: .6
+                });
+                faceMesh.onResults(handleFaceResults);
+                cameraController = new Camera(video, {
+                    onFrame: async () => {
+                        if (faceMesh && !monitoringLocked) await faceMesh.send({ image: video });
+                    },
+                    width: 640,
+                    height: 480
+                });
+                await cameraController.start();
+
+                if (monitoringLocked) {
+                    alertLevel = 0;
+                    updateAlertLevel();
+                    sessionStorage.removeItem(LOCK_KEY);
+                }
+                monitoringLocked = false;
+                closedSince = null;
+                triggerRecorded = false;
+                cancelRecoveryTimer();
+                lockNote.classList.remove('visible');
+                cameraState.textContent = 'Live';
+                cameraTag.textContent = 'CAMERA LIVE';
+                startButton.textContent = 'Monitoring active';
+                stopCameraButton.hidden = false;
+                setState('Looking for face…', 'warn');
+            } catch (error) {
+                stopCamera();
+                const message = error.name === 'NotAllowedError'
+                    ? 'Camera permission denied. Allow camera access and try again.'
+                    : `Could not start monitoring: ${error.message}`;
+                setState(message, 'danger');
+            } finally {
+                startButton.disabled = false;
+                startButton.disabled = !monitoringLocked && cameraState.textContent === 'Live';
+            }
+        }
+
+        if (monitoringLocked) {
+            alertLevel = MAX_ALERT_LEVEL;
+            updateAlertLevel();
+            lockNote.classList.add('visible');
+            cameraState.textContent = 'Locked';
+            cameraTag.textContent = 'RESTART REQUIRED';
+            startButton.textContent = 'Restart after stopping safely';
+            setState('STAGE 5 — Pull over safely. Monitoring locked.', 'danger');
+        }
+
+        accessForm.addEventListener('submit', unlockVehiclePanel);
+        startButton.addEventListener('click', startMonitoring);
+        stopCameraButton.addEventListener('click', stopMonitoringAndLock);
+        loadVehicleAccess();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SafeDrive AI | Autonomous Incident Command</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #080d17;
+            --surface: #101827;
+            --surface-raised: #141f31;
+            --surface-soft: #0c1422;
+            --border: #202e43;
+            --border-strong: #30425d;
+            --accent: #44d7e8;
+            --danger: #ff5368;
+            --warning: #f3b84b;
+            --success: #45d6a0;
+            --text: #e8eef7;
+            --muted: #8d9bb0;
+            --font: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html { min-width: 320px; background: var(--bg); }
+
+        body {
+            background:
+                radial-gradient(ellipse at 68% -20%, rgba(35, 83, 125, .22), transparent 42%),
+                var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        header {
+            position: relative;
+            z-index: 500;
+            min-height: 76px;
+            background: rgba(11, 18, 30, .94);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .brand-group { display: flex; align-items: center; gap: 13px; min-width: 0; }
+        .brand-mark {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            color: var(--accent);
+            background: rgba(68, 215, 232, .09);
+            border: 1px solid rgba(68, 215, 232, .2);
+            border-radius: 12px;
+        }
+        .brand-mark svg { width: 23px; height: 23px; }
+        .brand {
+            color: #f4f7fb;
+            font-size: 1rem;
+            font-weight: 750;
+            letter-spacing: .075em;
+            line-height: 1.25;
+        }
+        .brand span { color: var(--accent); }
+        .brand-subtitle { margin-top: 4px; color: var(--muted); font-size: .72rem; letter-spacing: .045em; }
+        .header-actions { display: flex; align-items: center; gap: 16px; }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            min-height: 34px;
+            font-size: .72rem;
+            font-weight: 650;
+            letter-spacing: .055em;
+            background: rgba(69, 214, 160, .08);
+            color: var(--success);
+            padding: 7px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(69, 214, 160, .2);
+            white-space: nowrap;
+        }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 0 3px rgba(69, 214, 160, .12);
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse { 50% { opacity: .48; } }
+        .sign-out {
+            color: #bac6d6;
+            text-decoration: none;
+            font-size: .82rem;
+            font-weight: 600;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: color .18s, border-color .18s, background .18s;
+        }
+        .sign-out:hover { color: #fff; border-color: var(--border-strong); background: rgba(255,255,255,.04); }
+        .main-grid {
+            display: grid;
+            grid-template-columns: minmax(310px, 360px) minmax(0, 1fr);
+            flex: 1;
+            min-height: 0;
+        }
+        .telemetry-sidebar {
+            background: rgba(11, 18, 30, .78);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+            overflow-y: auto;
+            scrollbar-color: #30415a transparent;
+            scrollbar-width: thin;
+        }
+        .telemetry-sidebar > * { flex: 0 0 auto; }
+        .sidebar-heading { padding: 2px 2px 6px; }
+        .eyebrow {
+            color: var(--accent);
+            font-size: .65rem;
+            font-weight: 750;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+        .sidebar-heading h1 { margin-top: 5px; font-size: 1.16rem; letter-spacing: -.025em; }
+        .sidebar-heading p { margin-top: 4px; color: var(--muted); font-size: .77rem; }
+        .card {
+            background: linear-gradient(145deg, rgba(20, 31, 49, .96), rgba(15, 24, 39, .98));
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 15px;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, .13);
+            transition: border-color .2s, transform .2s;
+        }
+        .card:hover { border-color: #2b3c55; }
+        .card-title {
+            font-size: .68rem;
+            text-transform: uppercase;
+            letter-spacing: .105em;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .gauge-val {
+            font-size: 2rem;
+            line-height: 1.1;
+            font-weight: 730;
+            letter-spacing: -.04em;
+            color: #f4f7fb;
+        }
+        .gauge-unit {
+            font-size: .78rem;
+            font-weight: 600;
+            letter-spacing: 0;
+            color: var(--muted);
+            margin-left: 6px;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: .78rem;
+        }
+        .metric-row > span:first-child { color: #9aa8bb; }
+        .metric-row > span:last-child { color: #e0e8f2; text-align: right; }
+        .metric-state { font-weight: 650; }
+        .telemetry-card { position: relative; overflow: hidden; }
+        .telemetry-card::after {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 2px;
+            background: var(--accent);
+            opacity: .65;
+        }
+        .telemetry-card.atmosphere::after { background: var(--warning); }
+        .telemetry-card.location::after { background: #9b8cff; }
+        .dispatch-card .place-name { font-weight: 650; font-size: .86rem; line-height: 1.4; color: #f1f5fa; }
+        .dispatch-card { border-color: rgba(68, 215, 232, .18); }
+        .dispatch-card.police { border-color: rgba(243, 184, 75, .2); }
+        .sos-card {
+            border-color: rgba(255, 83, 104, .36);
+            background: linear-gradient(145deg, rgba(55, 24, 39, .7), rgba(20, 25, 40, .98) 72%);
+        }
+        .sos-card .card-title { color: #ff9aa7; }
+        .sos-description { color: #bac5d4; font-size: .78rem; line-height: 1.55; }
+        .sos-status { margin-top: 10px; min-height: 18px; font-size: .74rem; line-height: 1.45; color: #aab8ca; overflow-wrap: anywhere; }
+        .route-btn {
+            width: 100%;
+            min-height: 40px;
+            margin-top: 10px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font: inherit;
+            font-size: .78rem;
+            font-weight: 700;
+            color: #07131b;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform .16s, filter .16s, box-shadow .16s;
+        }
+        .route-btn:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 7px 18px rgba(68, 215, 232, .16); }
+        .route-btn:focus-visible, .sign-out:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+        .route-btn:disabled { opacity: .6; cursor: wait; transform: none; }
+        .route-btn.secondary { color: #211702; background: var(--warning); }
+        .route-btn.abort { color: #ff9aa7; background: rgba(255, 83, 104, .06); border-color: rgba(255, 83, 104, .5); }
+        .route-btn.sos-btn { color: #fff; background: linear-gradient(135deg, #f34b62, #d83452); }
+        .route-btn.sos-btn:hover { box-shadow: 0 7px 18px rgba(243, 75, 98, .2); }
+        .incident-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(111, 29, 48, .55), rgba(47, 21, 37, .82));
+            border: 1px solid rgba(255, 83, 104, .72);
+            color: #ff7b8d;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: .84rem;
+            animation: flash 1s infinite alternate;
+            box-shadow: 0 16px 30px rgba(102, 18, 42, .24);
+        }
+        .incident-top { display:flex; gap:10px; align-items:flex-start; }
+        .incident-icon { width:30px; height:30px; display:grid; place-items:center; border-radius:9px; background:rgba(255,83,104,.15); font-size:1rem; }
+        .incident-kicker { display:block; font-size:.62rem; letter-spacing:1.3px; font-weight:800; color:#ff9aa7; margin-bottom:3px; }
+        .incident-title { color:#fff; font-size:.92rem; letter-spacing:.1px; }
+        #incidentDetails { margin:13px 0 11px; font-size:.79rem; color:#dbe5f0; line-height:1.45; }
+        .verification-timer { display:flex; justify-content:space-between; align-items:center; padding:9px 10px; margin-bottom:11px; background:rgba(0,0,0,.16); border:1px solid rgba(255,255,255,.08); border-radius:8px; color:#aebccc; font-size:.7rem; }
+        .verification-timer strong { color:#fff; font-size:1.12rem; letter-spacing:.5px; }
+        @keyframes flash { from { border-color: rgba(255, 83, 104, .76); } to { border-color: rgba(255, 83, 104, .25); } }
+        .map-panel { position: relative; min-width: 0; min-height: 0; background: #d7dce2; }
+        #map { width: 100%; height: 100%; min-height: 400px; background: #d7dce2; filter: saturate(.82) contrast(1.04); }
+        .map-toolbar {
+            position: absolute;
+            z-index: 450;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 10px 13px;
+            color: #f1f5fa;
+            background: rgba(12, 20, 33, .92);
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(5, 12, 22, .2);
+            pointer-events: none;
+        }
+        .map-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px rgba(69, 214, 160, .13); }
+        .map-toolbar strong { display: block; font-size: .72rem; letter-spacing: .055em; }
+        .map-toolbar span { display: block; margin-top: 3px; color: #9cacc0; font-size: .65rem; }
+        .map-legend {
+            position: absolute;
+            z-index: 450;
+            left: 16px;
+            bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 9px 12px;
+            color: #c9d3e0;
+            background: rgba(12, 20, 33, .9);
+            border: 1px solid rgba(255, 255, 255, .1);
+            border-radius: 9px;
+            font-size: .67rem;
+            pointer-events: none;
+        }
+        .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+        .legend-line { width: 16px; border-top: 2px dashed var(--accent); }
+        .event-log { max-height: 180px; overflow-y: auto; font-size: .73rem; color: #b6c2d2; }
+        .event-log div { border-top: 1px solid rgba(48, 66, 93, .6); padding: 9px 0; line-height: 1.45; }
+
+        @media (min-width: 1200px) {
+            .telemetry-sidebar { padding: 22px; gap: 13px; }
+            .card { padding: 16px; }
+        }
+        @media (max-width: 800px) {
+            body { height: auto; min-height: 100vh; overflow: auto; }
+            header { min-height: 68px; padding: 10px 15px; gap: 10px; }
+            .brand-mark { width: 38px; height: 38px; }
+            .brand { font-size: .88rem; }
+            .brand-subtitle { font-size: .65rem; }
+            .header-actions { gap: 8px; }
+            .status-badge { min-height: 32px; padding: 6px 9px; font-size: .61rem; }
+            .sign-out { padding: 8px 9px; font-size: .72rem; }
+            .main-grid { grid-template-columns: 1fr; }
+            .telemetry-sidebar { border-right: 0; padding: 16px; overflow: visible; }
+            .map-panel { grid-row: 1; min-height: 52vh; }
+            #map { height: 52vh; min-height: 340px; }
+            .map-toolbar { top: 12px; left: 12px; }
+            .map-legend { left: 12px; bottom: 14px; }
+        }
+        @media (max-width: 480px) {
+            header { align-items: flex-start; }
+            .brand-group { gap: 9px; }
+            .brand-mark { width: 34px; height: 34px; border-radius: 10px; }
+            .brand-mark svg { width: 19px; height: 19px; }
+            .brand { font-size: .77rem; letter-spacing: .045em; }
+            .brand-subtitle { max-width: 150px; font-size: .59rem; }
+            .header-actions { flex-direction: column-reverse; align-items: flex-end; gap: 5px; }
+            .status-badge { min-height: 26px; font-size: .55rem; }
+            .sign-out { border: 0; padding: 3px 4px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="brand-group">
+            <div class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3 19 6v5c0 4.7-2.8 8-7 10-4.2-2-7-5.3-7-10V6l7-3Z" />
+                    <path d="m9 12 2 2 4-4" />
+                </svg>
+            </div>
+            <div>
+                <div class="brand">SAFE<span>DRIVE</span> AI</div>
+                <div class="brand-subtitle">Autonomous incident command</div>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div id="connectionStatus" class="status-badge">
+                <div class="status-dot"></div> TELEMETRY LINK LIVE
+            </div>
+            <a class="sign-out" href="/logout">Sign out</a>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        <div class="telemetry-sidebar">
+            <div class="sidebar-heading">
+                <div class="eyebrow">Operations overview</div>
+                <h1>Vehicle monitoring</h1>
+                <p>Live telemetry · Unit IND-PB-9842</p>
+            </div>
+            <div id="incidentBox" class="incident-banner">
+                <div class="incident-top"><div class="incident-icon">⚠</div><div><span id="incidentKicker" class="incident-kicker">SAFETY VERIFICATION</span><b id="incidentTitle" class="incident-title">Incident verification in progress</b></div></div>
+                <div id="incidentDetails"></div>
+                <div id="verificationTimer" class="verification-timer"><span>Automatic dispatch in</span><strong id="verificationSeconds">10s</strong></div>
+                <button id="routeButton" class="route-btn" onclick="openMapsRoute()">Route Emergency Vehicle</button>
+                <button class="route-btn abort" onclick="abortEmergency()">Cancel False Alarm</button>
+            </div>
+
+            <div class="card sos-card">
+                <div class="card-title">Manual Emergency SOS</div>
+                <div class="sos-description">Send the vehicle’s latest location and telemetry to the configured Telegram dispatch chat.</div>
+                <button class="route-btn sos-btn" id="manualSosButton" onclick="sendManualSos()">Send SOS to Telegram</button>
+                <div class="sos-status" id="sosStatus" role="status" aria-live="polite">Ready</div>
+            </div>
+
+            <div class="card telemetry-card">
+                <div class="card-title">Dynamic Kinematics</div>
+                <div class="gauge-val" id="gVal">0.98<span class="gauge-unit">G</span></div>
+                <div class="metric-row"><span>Status:</span><span id="gStatus"
+                        style="color:var(--success);">Nominal</span></div>
+            </div>
+
+            <div class="card telemetry-card atmosphere">
+                <div class="card-title">Cabin Atmosphere</div>
+                <div class="gauge-val" id="smokeVal">340<span class="gauge-unit">ADC</span></div>
+                <div class="metric-row"><span>Thermal/Flame:</span><span id="flameStatus"
+                        style="color:var(--success);">Clear</span></div>
+            </div>
+
+            <div class="card telemetry-card location">
+                <div class="card-title">GNSS Positioning</div>
+                <div class="metric-row"><span>Latitude:</span><span id="latVal">30.681140</span></div>
+                <div class="metric-row"><span>Longitude:</span><span id="lonVal">76.605840</span></div>
+                <div class="metric-row"><span>Locked Sats:</span><span id="satVal">4</span></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Nearest Hospital</div>
+                <div class="place-name" id="hospName">Civil Hospital Rajpura
+                </div>
+                <div class="metric-row"><span>Calculated Corridor:</span><span id="hospDist"
+                        style="color:var(--accent);">4.2 km</span></div>
+            </div>
+
+            <div class="card dispatch-card police">
+                <div class="card-title">Nearest Police Station</div>
+                <div class="place-name" id="policeName">Awaiting incident</div>
+                <div class="metric-row"><span>Distance:</span><span id="policeDist" style="color:var(--warning);">--</span></div>
+                <button class="route-btn secondary" id="policeRouteButton" onclick="routePolice()" style="display:none;">Route Police Station</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Dispatch Event Log</div>
+                <div id="eventLog" class="event-log"><div>System armed; waiting for ESP32 telemetry.</div></div>
+            </div>
+        </div>
+
+        <section class="map-panel" aria-label="Live vehicle map">
+            <div class="map-toolbar">
+                <div class="map-live-dot" aria-hidden="true"></div>
+                <div><strong>LIVE VEHICLE MAP</strong><span>Position updates from onboard telemetry</span></div>
+            </div>
+            <div id="map" aria-label="Map showing the vehicle location"></div>
+            <div class="map-legend" aria-label="Map legend">
+                <span class="legend-item"><span class="legend-dot"></span>Vehicle location</span>
+                <span class="legend-item"><span class="legend-line"></span>Emergency route</span>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let map = L.map('map').setView([30.68114, 76.60584], 14);
+        const streetsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        });
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri'
+        });
+        streetsLayer.addTo(map);
+        L.control.layers({
+            'Streets': streetsLayer,
+            'Satellite': satelliteLayer
+        }, null, { position: 'topright' }).addTo(map);
+
+        let vehicleMarker = L.circleMarker([30.68114, 76.60584], {
+            color: '#00e5ff', fillColor: '#00e5ff', fillOpacity: 0.8, radius: 9
+        }).addTo(map).bindPopup("<b>SafeDrive Unit</b><br>Vehicle: IND-PB-9842");
+
+        let hospitalMarker = null;
+        let routePolyline = null;
+        let policeRoutePolyline = null;
+        let policeMarker = null;
+        let crashCoords = [30.68114, 76.60584];
+        let policeCoords = null;
+        let sirenActive = false;
+        let lastIncidentId = null;
+
+        function addLog(message) {
+            const item = document.createElement('div');
+            item.innerText = `${new Date().toLocaleTimeString()} — ${message}`;
+            document.getElementById('eventLog').prepend(item);
+        }
+
+        function setConnectionStatus(online) {
+            const status = document.getElementById('connectionStatus');
+            status.innerHTML = `<div class="status-dot"></div> ${online ? 'TELEMETRY LINK LIVE' : 'TELEMETRY LINK OFFLINE'}`;
+            status.style.color = online ? 'var(--success)' : 'var(--danger)';
+            status.style.borderColor = online ? 'var(--success)' : 'var(--danger)';
+        }
+
+        // Web Audio API European Emergency Siren
+        function playEmergencySiren() {
+            if (sirenActive) return;
+            sirenActive = true;
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                gain.gain.value = 0.2;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+
+                let highTone = true;
+                let sirenInterval = setInterval(() => {
+                    if (!sirenActive) {
+                        clearInterval(sirenInterval);
+                        osc.stop();
+                        return;
+                    }
+                    osc.frequency.setValueAtTime(highTone ? 960 : 770, audioCtx.currentTime);
+                    highTone = !highTone;
+                }, 400);
+            } catch (e) { }
+        }
+
+        // Test simulation: press C for a crash, F for a fire, or Space to cancel.
+        window.addEventListener('keydown', (e) => {
+            if (e.repeat || ['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return;
+            if (e.key.toLowerCase() === 'c') sendTestIncident('Severe Head-On Impact', 4.85, 520);
+            if (e.key.toLowerCase() === 'f') sendTestIncident('Cabin Fire Detected (Test)', 1.0, 700);
+            if (e.code === 'Space') {
+                fetch(`${API_BASE}/api/telemetry`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: "aborted" })
+                });
+            }
+        });
+
+        async function sendTestIncident(event, impactG, smoke) {
+            const latitude = Number(document.getElementById('latVal').innerText);
+            const longitude = Number(document.getElementById('lonVal').innerText);
+            const status = document.getElementById('sosStatus');
+            status.innerText = `Sending ${event} test…`;
+            try {
+                const pendingResponse = await fetch(`${API_BASE}/api/telemetry`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'pending', event, impact_g: impactG,
+                        latitude, longitude, smoke_val: smoke
+                    })
+                });
+                if (!pendingResponse.ok) throw new Error(`Could not start test incident (${pendingResponse.status})`);
+
+                status.innerText = `${event}: 10-second verification started. Cancel it to prevent SOS.`;
+                addLog(status.innerText);
+                setTimeout(async () => {
+                    const response = await fetch(`${API_BASE}/api/telemetry`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'confirmed', event, impact_g: impactG, latitude, longitude, smoke_val: smoke })
+                    });
+                    const result = await response.json();
+                    if (response.status === 409) { status.innerText = 'Test incident cancelled. No SOS was sent.'; return; }
+                    if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
+                    status.innerText = result.telegram_alert_sent ? `${event} test sent to Telegram.` : 'Incident confirmed, but Telegram delivery failed.';
+                    addLog(status.innerText);
+                }, 10200);
+            } catch (error) {
+                status.innerText = `Test SOS failed: ${error.message}`;
+                addLog(status.innerText);
+            }
+        }
+
+        // 1. Poll live sensor metrics every 1 second
+        setInterval(async () => {
+            try {
+                let res = await fetch(`${API_BASE}/api/live_stream`);
+                if (res.ok) {
+                    let data = await res.json();
+                    setConnectionStatus(true);
+                    document.getElementById('gVal').innerHTML = `${data.g_force.toFixed(2)}<span class="gauge-unit">G</span>`;
+                    document.getElementById('smokeVal').innerHTML = `${data.smoke_adc}<span class="gauge-unit">ADC</span>`;
+                    document.getElementById('latVal').innerText = data.latitude.toFixed(6);
+                    document.getElementById('lonVal').innerText = data.longitude.toFixed(6);
+                    document.getElementById('satVal').innerText = data.satellites;
+                    document.getElementById('gStatus').innerText = data.g_force >= 3 ? 'High-G detected' : 'Nominal';
+                    document.getElementById('gStatus').style.color = data.g_force >= 3 ? 'var(--danger)' : 'var(--success)';
+
+                    let flameEl = document.getElementById('flameStatus');
+                    flameEl.innerText = data.flame_detected ? "FIRE DETECTED" : "Clear";
+                    flameEl.style.color = data.flame_detected ? "var(--danger)" : "var(--success)";
+                }
+            } catch (e) { setConnectionStatus(false); }
+        }, 1000);
+
+        // 2. Poll incident switchboard every 1.5 seconds
+        setInterval(async () => {
+            try {
+                let res = await fetch(`${API_BASE}/api/telemetry`);
+                if (res.ok) {
+                    let ev = await res.json();
+                    setConnectionStatus(true);
+
+                    if (ev.status === "aborted") resetIncident();
+                    else if (ev.status === "pending") renderVerification(ev);
+                    else if (ev.status === "dispatched") renderIncident(ev);
+                }
+            } catch (e) { setConnectionStatus(false); }
+        }, 1500);
+
+        function renderIncident(ev) {
+            const incidentId = `${ev.timestamp}_${ev.event}`;
+            if (incidentId === lastIncidentId) return;
+            lastIncidentId = incidentId;
+            playEmergencySiren();
+            document.getElementById('incidentBox').style.display = 'block';
+            document.getElementById('incidentKicker').innerText = 'DISPATCH CONFIRMED';
+            document.getElementById('incidentTitle').innerText = 'Emergency response activated';
+            document.getElementById('verificationTimer').style.display = 'none';
+            document.getElementById('routeButton').style.display = 'block';
+            document.getElementById('incidentDetails').innerText = `${ev.event} (${Number(ev.impact_g).toFixed(2)}G) | Triage: ${ev.triage_level}`;
+            crashCoords = [ev.latitude, ev.longitude];
+            vehicleMarker.setStyle({ color: '#ff1744', fillColor: '#ff1744' });
+            vehicleMarker.setLatLng(crashCoords);
+            map.flyTo(crashCoords, 14);
+            if (routePolyline) map.removeLayer(routePolyline);
+            if (policeRoutePolyline) map.removeLayer(policeRoutePolyline);
+            if (ev.nearest_hospital) {
+                const hospital = ev.nearest_hospital;
+                document.getElementById('hospName').innerText = hospital.name;
+                document.getElementById('hospDist').innerText = `${hospital.distance_km} km`;
+                if (hospitalMarker) map.removeLayer(hospitalMarker);
+                hospitalMarker = L.marker([hospital.lat, hospital.lon]).addTo(map)
+                    .bindPopup(`<b>${hospital.name}</b><br>Nearest hospital`);
+                routePolyline = L.polyline([crashCoords, [hospital.lat, hospital.lon]], { color: '#00e5ff', dashArray: '6, 8', weight: 4 }).addTo(map);
+            } else {
+                if (hospitalMarker) { map.removeLayer(hospitalMarker); hospitalMarker = null; }
+                document.getElementById('hospName').innerText = 'No nearby hospital found';
+                document.getElementById('hospDist').innerText = '--';
+            }
+            if (ev.nearest_police_station) {
+                const police = ev.nearest_police_station;
+                policeCoords = [police.lat, police.lon];
+                document.getElementById('policeName').innerText = police.name;
+                document.getElementById('policeDist').innerText = `${police.distance_km} km`;
+                document.getElementById('policeRouteButton').style.display = 'block';
+                if (policeMarker) map.removeLayer(policeMarker);
+                policeMarker = L.marker(policeCoords).addTo(map).bindPopup(`<b>${police.name}</b><br>Nearest police station`);
+                policeRoutePolyline = L.polyline([crashCoords, policeCoords], { color: '#facc15', dashArray: '6, 8', weight: 4 }).addTo(map);
+            } else {
+                if (policeMarker) { map.removeLayer(policeMarker); policeMarker = null; }
+                policeCoords = null;
+                document.getElementById('policeName').innerText = 'No nearby police station found';
+                document.getElementById('policeDist').innerText = '--';
+                document.getElementById('policeRouteButton').style.display = 'none';
+            }
+            addLog(ev.telegram_alert_sent
+                ? `SOS sent to Telegram: ${ev.event}; hospital and police routes updated.`
+                : `Incident confirmed, but Telegram delivery failed for ${ev.event}. ${ev.telegram_error || 'Check Flask server configuration.'}`);
+        }
+
+        function renderVerification(ev) {
+            document.getElementById('incidentBox').style.display = 'block';
+            const seconds = Math.max(0, Math.ceil((ev.deadline - Date.now()) / 1000));
+            document.getElementById('incidentKicker').innerText = 'SAFETY VERIFICATION';
+            document.getElementById('incidentTitle').innerText = 'Confirm this is not a false alarm';
+            document.getElementById('incidentDetails').innerText = ev.event;
+            document.getElementById('verificationSeconds').innerText = `${seconds}s`;
+            document.getElementById('verificationTimer').style.display = 'flex';
+            document.getElementById('routeButton').style.display = 'none';
+        }
+
+        function resetIncident() {
+            if (lastIncidentId === 'aborted') return;
+            lastIncidentId = 'aborted';
+            sirenActive = false;
+            document.getElementById('incidentBox').style.display = 'none';
+            vehicleMarker.setStyle({ color: '#00e5ff', fillColor: '#00e5ff' });
+            if (hospitalMarker) { map.removeLayer(hospitalMarker); hospitalMarker = null; }
+            if (policeMarker) { map.removeLayer(policeMarker); policeMarker = null; }
+            if (routePolyline) { map.removeLayer(routePolyline); routePolyline = null; }
+            if (policeRoutePolyline) { map.removeLayer(policeRoutePolyline); policeRoutePolyline = null; }
+            policeCoords = null;
+            document.getElementById('hospName').innerText = 'Awaiting incident';
+            document.getElementById('hospDist').innerText = '--';
+            document.getElementById('policeName').innerText = 'Awaiting incident';
+            document.getElementById('policeDist').innerText = '--';
+            document.getElementById('policeRouteButton').style.display = 'none';
+            addLog('False trigger cancelled. Dispatch routes cleared.');
+        }
+
+        function abortEmergency() {
+            fetch(`${API_BASE}/api/telemetry`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'aborted', timestamp: Date.now() })
+            });
+        }
+
+        async function sendManualSos() {
+            if (!window.confirm('Send an emergency SOS with your current location to the configured Telegram dispatch chat?')) return;
+
+            const button = document.getElementById('manualSosButton');
+            const status = document.getElementById('sosStatus');
+            button.disabled = true;
+            status.innerText = 'Sending SOS…';
+            try {
+                const response = await fetch(`${API_BASE}/api/sos`, { method: 'POST' });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || `Request failed (${response.status})`);
+                status.innerText = 'SOS sent to Telegram dispatch.';
+                addLog('Manual SOS sent to Telegram dispatch.');
+            } catch (error) {
+                status.innerText = `SOS failed: ${error.message}`;
+                addLog(`Manual SOS failed: ${error.message}`);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        function openMapsRoute() {
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${crashCoords[0]},${crashCoords[1]}&travelmode=driving`, '_blank');
+        }
+
+        function routePolice() {
+            if (!policeCoords) return;
+            window.open(`https://www.google.com/maps/dir/?api=1&origin=${crashCoords[0]},${crashCoords[1]}&destination=${policeCoords[0]},${policeCoords[1]}&travelmode=driving`, '_blank');
+        }
+    </script>
+</body>
+
+</html>
