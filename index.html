@@ -431,19 +431,48 @@
     <script>
         const API_BASE = window.location.origin;
         let map = L.map('map').setView([30.68114, 76.60584], 14);
-        const streetsLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-        });
-        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri'
-        });
-        streetsLayer.addTo(map);
-        L.control.layers({
-            'Streets': streetsLayer,
-            'Satellite': satelliteLayer
-        }, null, { position: 'topright' }).addTo(map);
+        let streetsLayer;
+        let satelliteLayer;
+        const mapLayerControl = L.control.layers({}, null, { position: 'topright' }).addTo(map);
+
+        function configureMapLayers(mapboxToken = '') {
+            const usingMapbox = mapboxToken.startsWith('pk.');
+            const nextStreetsLayer = usingMapbox
+                ? L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+                    tileSize: 512, zoomOffset: -1, maxZoom: 19,
+                    attribution: '&copy; Mapbox &copy; OpenStreetMap'
+                })
+                : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+                });
+            const nextSatelliteLayer = usingMapbox
+                ? L.tileLayer(`https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/tiles/{z}/{x}/{y}?access_token=${mapboxToken}`, {
+                    tileSize: 512, zoomOffset: -1, maxZoom: 19,
+                    attribution: '&copy; Mapbox &copy; OpenStreetMap'
+                })
+                : L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19, attribution: 'Tiles &copy; Esri'
+                });
+
+            if (streetsLayer) {
+                map.removeLayer(streetsLayer);
+                mapLayerControl.removeLayer(streetsLayer);
+                mapLayerControl.removeLayer(satelliteLayer);
+            }
+            streetsLayer = nextStreetsLayer;
+            satelliteLayer = nextSatelliteLayer;
+            streetsLayer.addTo(map);
+            mapLayerControl.addBaseLayer(streetsLayer, 'Streets');
+            mapLayerControl.addBaseLayer(satelliteLayer, 'Satellite');
+        }
+
+        configureMapLayers();
+        fetch(`${API_BASE}/api/map-config`)
+            .then(response => response.ok ? response.json() : {})
+            .then(config => {
+                if (config.mapbox_token) configureMapLayers(config.mapbox_token);
+            })
+            .catch(() => { /* Keep token-free fallback layers available. */ });
 
         let vehicleMarker = L.circleMarker([30.68114, 76.60584], {
             color: '#00e5ff', fillColor: '#00e5ff', fillOpacity: 0.8, radius: 9

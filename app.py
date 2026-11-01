@@ -10,10 +10,7 @@ from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import requests
-from dotenv import load_dotenv
 
-
-load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
@@ -61,22 +58,23 @@ DEFAULT_LAT, DEFAULT_LON = 30.68114, 76.60584
 MAPBOX_ACCESS_TOKEN = (
     os.getenv("MAPBOX_ACCESS_TOKEN")
     or os.getenv("VITE_MAPBOX_TOKEN")
+    or "pk.eyJ1IjoiZXZhZWxsYWxsYWwiLCJhIjoiY204b2U5Nzg0MDFzbDJtcHAxdGN5MWl4NSJ9.H9WERlS25nf9tn-fzf_Fsw"
 )
 try:
     from telegram_config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_POLICE_CHAT_ID
 except ModuleNotFoundError as exc:
     if exc.name != "telegram_config":
         raise
-    TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-    TELEGRAM_POLICE_CHAT_ID = os.getenv("TELEGRAM_POLICE_CHAT_ID")
+    TELEGRAM_BOT_TOKEN = "9087824810:AAG34jks3g4Vw9z9PSRCCg3lBubBCZrNWRc"
+    TELEGRAM_CHAT_ID = "7912359149"
+    TELEGRAM_POLICE_CHAT_ID = None
 
 
 def telegram_dispatch_configured():
     def is_configured(value):
         if not value or not value.strip():
             return False
-        return not value.strip().casefold().startswith(("your_", "paste_", "replace_", "change_me"))
+        return not value.strip().casefold().startswith(("your_", "replace_", "change_me"))
 
     return is_configured(TELEGRAM_BOT_TOKEN) and is_configured(TELEGRAM_CHAT_ID)
 
@@ -302,7 +300,7 @@ def send_manual_sos():
         return jsonify({"error": "Admin authentication is required to send an SOS."}), 401
     if not telegram_dispatch_configured():
         return jsonify({
-            "error": "Telegram is not configured. Add credentials to .env (see .env.example) or telegram_config.py, then restart Flask."
+            "error": "Telegram is not configured. Copy telegram_config.example.py to telegram_config.py, enter your credentials, then restart Flask."
         }), 503
 
     try:
@@ -379,7 +377,7 @@ def handle_telemetry():
     telegram_error = None
     if not primary_sent:
         telegram_error = (
-            "Telegram is not configured. Add its credentials to .env (see .env.example) or telegram_config.py, then restart Flask."
+            "Telegram is not configured. Copy telegram_config.example.py to telegram_config.py, enter your credentials, then restart Flask."
             if not telegram_dispatch_configured()
             else "Telegram did not confirm delivery. Check the bot token, chat ID, bot access, and Flask terminal."
         )
@@ -399,5 +397,5 @@ if __name__ == "__main__":
     if telegram_dispatch_configured():
         print("[CONFIG] Telegram dispatch is configured.")
     else:
-        print("[CONFIG] Telegram is not configured. Add credentials to .env (see .env.example) or telegram_config.py.")
+        print("[CONFIG] Telegram is not configured. Copy telegram_config.example.py to telegram_config.py and enter your credentials.")
     app.run(host="0.0.0.0", port=5000, debug=False)
