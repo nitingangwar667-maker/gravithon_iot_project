@@ -5,20 +5,20 @@ replacement for emergency services or a certified safety system.
 
 ## Start the server
 
-Copy `telegram_config.example.py` to `telegram_config.py` and enter your
-Telegram credentials there. `telegram_config.py` is excluded from Git; never
-commit or share it. The bot token previously shared in chat must be revoked
-with BotFather. Put only the newly generated token in your local config.
+Copy `.env.example` to `.env` and enter your credentials. `.env` is excluded
+from Git; never commit or share it. The bot token previously shared in chat
+must be revoked with BotFather. Put only newly generated credentials in your
+local config.
 
 ```powershell
 python -m pip install -r requirements.txt
-Copy-Item telegram_config.example.py telegram_config.py
-# Edit telegram_config.py and enter your new bot token and chat ID.
+Copy-Item .env.example .env
+# Edit .env and enter your new Mapbox and Telegram credentials.
 python app.py
 ```
 
 In Telegram, open your bot and press **Start** so it can message you. Restart
-Flask after changing `telegram_config.py`.
+Flask after changing `.env`.
 
 Open `http://127.0.0.1:5000/` in a browser on the same computer and sign in
 with an admin account. The dashboard polls the Flask server for telemetry.
@@ -50,7 +50,7 @@ false alarms.
 The admin dashboard also has a **Send SOS to Telegram** button for a manual
 alert. It sends the latest vehicle location and telemetry to
 `TELEGRAM_CHAT_ID`; confirm the prompt before sending. Configure
-`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `telegram_config.py`. The dashboard displays
+`TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env`. The dashboard displays
 configuration and delivery errors if the alert cannot be sent.
 
 Driver accounts create a sign-in password during registration. On their first
